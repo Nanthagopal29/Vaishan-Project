@@ -49,6 +49,7 @@ CSRF_TRUSTED_ORIGINS = [
 # Application definition
 
 INSTALLED_APPS = [
+    "jazzmin",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -135,6 +136,14 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Billing Admin",
+    "site_header": "Billing Administration",
+    "site_brand": "Billing System",
+    "site_logo": "images/logo.png",
+    "login_logo": "images/logo.png",
+}
 
 
 # Static files (CSS, JavaScript, Images)

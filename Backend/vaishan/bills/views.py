@@ -12,7 +12,60 @@ import json
 from .models import TrsBills, TrsBillItems, SupplierMaster
 
 
+def _serialize_bill(bill, include_items=False):
+    supplier_name = bill.supplier.supplier_name if bill.supplier else None
+    supplier_email = bill.supplier.email if bill.supplier else None
 
+    data = {
+        "id": bill.id,
+        "invoice_no": bill.invoice_no,
+        "invoice_date": bill.invoice_date,
+        "supplier_id": bill.supplier_id,
+        "supplier_name": supplier_name,
+        "supplier_email": supplier_email,
+        "buyer_name": bill.buyer_name,
+        "buyer_address": bill.buyer_address,
+        "buyer_gstin": bill.buyer_gstin,
+        "buyer_state": bill.buyer_state,
+        "buyer_state_code": bill.buyer_state_code,
+        "delivery_note": bill.delivery_note,
+        "reference_no": bill.reference_no,
+        "reference_date": bill.reference_date,
+        "buyer_order_no": bill.buyer_order_no,
+        "dispatch_doc_no": bill.dispatch_doc_no,
+        "dispatched_through": bill.dispatched_through,
+        "delivery_note_date": bill.delivery_note_date,
+        "destination": bill.destination,
+        "payment_terms": bill.payment_terms,
+        "other_references": bill.other_references,
+        "terms_of_delivery": bill.terms_of_delivery,
+        "subtotal": bill.subtotal,
+        "cgst_percentage": bill.cgst_percentage,
+        "cgst_amount": bill.cgst_amount,
+        "sgst_percentage": bill.sgst_percentage,
+        "sgst_amount": bill.sgst_amount,
+        "round_off": bill.round_off,
+        "total_amount": bill.total_amount,
+        "created_at": bill.created_at,
+        "updated_at": bill.updated_at,
+    }
+
+    if include_items:
+        items = TrsBillItems.objects.filter(bill_id=bill.id).order_by("sl_no")
+        data["items"] = [
+            {
+                "id": item.id,
+                "sl_no": item.sl_no,
+                "description": item.description,
+                "quantity": item.quantity,
+                "unit": item.unit,
+                "rate": item.rate,
+                "amount": item.amount,
+            }
+            for item in items
+        ]
+
+    return data
 
 
 def send_invoice_email(bill, items, supplier):

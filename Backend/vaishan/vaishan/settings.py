@@ -34,7 +34,8 @@ ALLOWED_HOSTS = ['*']
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5600",
     "http://192.168.1.8:5600",
-    "https://vaishanandj-billing.onrender.com"
+    "https://vaishanandj-billing.onrender.com",
+    "https://vj-bills.netlify.app"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -42,7 +43,8 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5600",
     "http://192.168.1.8:5600",
-    "https://vaishanandj-billing.onrender.coms"
+    "https://vaishanandj-billing.onrender.coms",
+    "https://vj-bills.netlify.app"
 ]
 
 

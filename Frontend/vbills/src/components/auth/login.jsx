@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { LOGIN_API } from '../../config/api';
 
 const UserIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,9 +63,7 @@ const Login = () => {
   const isRegister = authMode === 'register';
   const isForgotPassword = authMode === 'forgot-password';
   const isResetPassword = authMode === 'reset-password';
-  const apiBaseUrl = (
-    import.meta.env.VITE_API_BASE_URL || 'https://vaishanandj-billing.onrender.com/'
-  ).replace(/\/$/, '');
+
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -81,7 +80,7 @@ const Login = () => {
     setMessage({ type: '', text: '' });
 
     // API Routing
-    const endpoint = isLogin ? `${apiBaseUrl}/login/` : `${apiBaseUrl}/users/`;
+    const endpoint = isLogin ? LOGIN_API : `${LOGIN_API.replace('/invoice/login/', '/invoice/users/')}`;
 
     // Map fields properly to your Django model fields
     const payload = isLogin

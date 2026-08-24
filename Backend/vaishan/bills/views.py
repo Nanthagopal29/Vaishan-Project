@@ -1,6 +1,8 @@
 from decimal import Decimal
 
+
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login
 from django.contrib.auth.models import User
@@ -10,6 +12,10 @@ from django.db import transaction
 import json
 
 from .models import TrsBills, TrsBillItems, SupplierMaster
+
+
+def index(request):
+    return render(request, "index.html")
 
 
 def _serialize_bill(bill, include_items=False):

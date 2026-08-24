@@ -16,8 +16,53 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+from django.shortcuts import render
+
+
+# ------------------------------------------------------------------
+# Custom 404 handler — renders the HTML 404 template
+# Active only when DEBUG = False (production)
+# ------------------------------------------------------------------
+def page_not_found(request, exception=None):
+    endpoints = [
+        "/invoice/bills/",
+        "/invoice/bills/<id>/",
+        "/invoice/bills/<id>/items/",
+        "/invoice/suppliers/",
+        "/invoice/login/",
+        "/admin/",
+    ]
+    return render(request, "404.html", {"endpoints": endpoints}, status=404)
+
+
+# ------------------------------------------------------------------
+# Root health-check endpoint
+# ------------------------------------------------------------------
+def api_root(request):
+    return JsonResponse(
+        {
+            "status": True,
+            "message": "Vaishan & J Billing API is running.",
+            "version": "1.0",
+            "endpoints": {
+                "bills":        "/invoice/bills/",
+                "bill_detail":  "/invoice/bills/<id>/",
+                "bill_items":   "/invoice/bills/<id>/items/",
+                "suppliers":    "/invoice/suppliers/",
+                "login":        "/invoice/login/",
+                "admin":        "/admin/",
+            },
+        }
+    )
+
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('invoice/', include('bills.urls')),
+    path("", api_root, name="api-root"),
+    path("admin/", admin.site.urls),
+    path("invoice/", include("bills.urls")),  # /invoice/bills/, /invoice/suppliers/, etc.
 ]
+
+# Register the custom 404 handler
+# NOTE: Only activates when DEBUG = False in settings.py
+handler404 = page_not_found

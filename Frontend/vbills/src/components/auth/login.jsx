@@ -63,7 +63,7 @@ const Login = () => {
   const isForgotPassword = authMode === 'forgot-password';
   const isResetPassword = authMode === 'reset-password';
   const apiBaseUrl = (
-    import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.8:7600/invoice'
+    import.meta.env.VITE_API_BASE_URL || 'https://vaishanandj-billing.onrender.com/'
   ).replace(/\/$/, '');
 
   const handleChange = (e) => {

@@ -34,7 +34,7 @@ ALLOWED_HOSTS = ['*']
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5600",
     "http://192.168.1.8:5600",
-    "https://m54z6ljr-5600.inc1.devtunnels.ms"
+    "https://vaishanandj-billing.onrender.com"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -42,7 +42,7 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5600",
     "http://192.168.1.8:5600",
-    "https://m54z6ljr-5600.inc1.devtunnels.ms"
+    "https://vaishanandj-billing.onrender.coms"
 ]
 
 
@@ -77,7 +77,8 @@ ROOT_URLCONF = 'vaishan.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # project-level fallback (optional)
+
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -150,6 +151,7 @@ JAZZMIN_SETTINGS = {
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 # Email

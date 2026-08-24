@@ -37,8 +37,19 @@ const View = () => {
   const invoiceRef = useRef(null);
   const hiddenInvoiceRef = useRef(null);
 
-  const [bills, setBills] = useState([]);
+  const CACHE_KEY = "vj_bills_cache";
+
+  const [bills, setBills] = useState(() => {
+    // Load cached bills immediately — zero wait time on revisit
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
@@ -50,11 +61,15 @@ const View = () => {
   const [downloadingId, setDownloadingId] = useState(null);
 
   // ==========================================================
-  // FETCH ALL BILLS
+  // FETCH ALL BILLS (stale-while-revalidate)
   // ==========================================================
-  const fetchBills = async () => {
+  const fetchBills = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError("");
 
       const response = await fetch(BILL_API, {
@@ -68,17 +83,23 @@ const View = () => {
         throw new Error(result.message || "Failed to fetch bills");
       }
 
-      setBills(result.data || []);
+      const fresh = result.data || [];
+      setBills(fresh);
+      // Persist to cache for next visit
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(fresh)); } catch {}
     } catch (err) {
       console.error(err);
       setError(err.message || "Unable to load bills");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchBills();
+    const hasCached = bills.length > 0;
+    // If we have cached data show it instantly, refresh silently in background
+    fetchBills({ silent: hasCached });
   }, []);
 
   // ==========================================================
@@ -320,13 +341,19 @@ const View = () => {
             <p className="text-xs font-medium tracking-widest text-[#143d30]/60 uppercase">
               Total Bills: <span className="text-[#b9935a] font-bold">{filteredBills.length}</span>
             </p>
+            {refreshing && (
+              <p className="text-[10px] font-semibold tracking-widest text-[#b9935a]/70 uppercase mt-1 flex items-center justify-end gap-1">
+                <span className="inline-block h-2 w-2 animate-spin rounded-full border border-[#b9935a] border-t-transparent" />
+                Syncing...
+              </p>
+            )}
           </div>
         </div>
 
         {error && (
           <div className="mb-6 rounded-sm border border-red-900/20 bg-red-900/10 px-5 py-4 text-sm font-semibold tracking-wide text-red-800 flex items-center shadow-sm">
             <span className="flex-1">{error}</span>
-            <button onClick={fetchBills} className="ml-3 font-bold uppercase tracking-widest text-xs hover:text-red-900 underline underline-offset-4">
+            <button onClick={() => fetchBills({ silent: false })} className="ml-3 font-bold uppercase tracking-widest text-xs hover:text-red-900 underline underline-offset-4">
               Retry
             </button>
           </div>

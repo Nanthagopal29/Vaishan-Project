@@ -15,7 +15,8 @@ from .models import TrsBills, TrsBillItems, SupplierMaster
 
 
 def index(request):
-    return render(request, "index.html")
+    base_url = request.build_absolute_uri("/").rstrip("/")
+    return render(request, "index.html", {"base_url": base_url})
 
 
 

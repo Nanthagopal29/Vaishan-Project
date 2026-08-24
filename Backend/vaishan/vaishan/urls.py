@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
 from django.shortcuts import render
+from bills.views import index
 
 
 # ------------------------------------------------------------------
@@ -58,7 +59,7 @@ def api_root(request):
 
 
 urlpatterns = [
-    path("", api_root, name="api-root"),
+    path("", index, name="home"),            # serves index.html at http://host/
     path("admin/", admin.site.urls),
     path("invoice/", include("bills.urls")),  # /invoice/bills/, /invoice/suppliers/, etc.
 ]

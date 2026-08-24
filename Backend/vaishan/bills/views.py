@@ -17,6 +17,74 @@ from .models import TrsBills, TrsBillItems, SupplierMaster
 def index(request):
     return render(request, "index.html")
 
+    data = {
+        "id": bill.id,
+        "invoice_no": bill.invoice_no,
+        "invoice_date": bill.invoice_date,
+        "supplier_id": bill.supplier_id,
+        "supplier": None,
+        "buyer_name": bill.buyer_name,
+        "buyer_address": bill.buyer_address,
+        "buyer_gstin": bill.buyer_gstin,
+        "buyer_state": bill.buyer_state,
+        "buyer_state_code": bill.buyer_state_code,
+        "delivery_note": bill.delivery_note,
+        "reference_no": bill.reference_no,
+        "reference_date": bill.reference_date,
+        "buyer_order_no": bill.buyer_order_no,
+        "dispatch_doc_no": bill.dispatch_doc_no,
+        "dispatched_through": bill.dispatched_through,
+        "delivery_note_date": bill.delivery_note_date,
+        "destination": bill.destination,
+        "payment_terms": bill.payment_terms,
+        "other_references": bill.other_references,
+        "terms_of_delivery": bill.terms_of_delivery,
+        "subtotal": bill.subtotal,
+        "cgst_percentage": bill.cgst_percentage,
+        "cgst_amount": bill.cgst_amount,
+        "sgst_percentage": bill.sgst_percentage,
+        "sgst_amount": bill.sgst_amount,
+        "round_off": bill.round_off,
+        "total_amount": bill.total_amount,
+        "created_at": bill.created_at,
+        "updated_at": bill.updated_at,
+    }
+
+    if supplier:
+        data["supplier"] = {
+            "id": supplier.id,
+            "supplier_code": supplier.supplier_code,
+            "supplier_name": supplier.supplier_name,
+            "contact_person": supplier.contact_person,
+            "mobile": supplier.mobile,
+            "email": supplier.email,
+            "gstin": supplier.gstin,
+            "pan": supplier.pan,
+            "address": supplier.address,
+            "state": supplier.state,
+            "city": supplier.city,
+            "pincode": supplier.pincode,
+        }
+
+    if include_items:
+        items = TrsBillItems.objects.filter(bill_id=bill.id).order_by("sl_no")
+        data["items"] = [
+            {
+                "id": item.id,
+                "bill_id": item.bill_id,
+                "sl_no": item.sl_no,
+                "description": item.description,
+                "quantity": item.quantity,
+                "unit": item.unit,
+                "rate": item.rate,
+                "amount": item.amount,
+                "created_at": item.created_at,
+                "updated_at": item.updated_at,
+            }
+            for item in items
+        ]
+
+    return data
 
 def _serialize_bill(bill, include_items=False):
     supplier_name = bill.supplier.supplier_name if bill.supplier else None
@@ -116,8 +184,6 @@ def send_invoice_email(bill, items, supplier):
         return {"sent": False, "message": str(exc)}
 
 
-
-
 @csrf_exempt
 def login_api(request):
 
@@ -183,19 +249,10 @@ def login_api(request):
         }, status=500)
 
 
-
-# ============================================================
-# TRS BILLS - LIST + CREATE
-# ============================================================
-
 @csrf_exempt
 def bills(request):
 
-    # -------------------------
-    # GET - List all bills
-    # -------------------------
     if request.method == "GET":
-
         bills = TrsBills.objects.select_related("supplier").all().order_by("-id")
         data = [_serialize_bill(bill) for bill in bills]
 
@@ -204,9 +261,6 @@ def bills(request):
             "data": data
         })
 
-    # -------------------------
-    # POST - Create bill
-    # -------------------------
     elif request.method == "POST":
 
         try:
@@ -293,7 +347,6 @@ def bills(request):
     }, status=405)
 
 
-
 @csrf_exempt
 def bill_detail(request, bill_id):
 
@@ -306,20 +359,12 @@ def bill_detail(request, bill_id):
             "message": "Bill not found"
         }, status=404)
 
-    # ========================================================
-    # GET
-    # ========================================================
-
     if request.method == "GET":
         bill = TrsBills.objects.select_related("supplier").get(id=bill_id)
         return JsonResponse({
             "status": True,
             "data": _serialize_bill(bill, include_items=True)
         })
-
-    # ========================================================
-    # PUT - Update
-    # ========================================================
 
     elif request.method == "PUT":
 
@@ -359,11 +404,7 @@ def bill_detail(request, bill_id):
                     setattr(bill, field, body[field])
 
             if "supplier_id" in body:
-
-                supplier = SupplierMaster.objects.get(
-                    id=body["supplier_id"]
-                )
-
+                supplier = SupplierMaster.objects.get(id=body["supplier_id"])
                 bill.supplier = supplier
 
             bill.save()
@@ -384,10 +425,6 @@ def bill_detail(request, bill_id):
                 "status": False,
                 "message": str(e)
             }, status=400)
-
-    # ========================================================
-    # DELETE
-    # ========================================================
 
     elif request.method == "DELETE":
 
@@ -418,10 +455,6 @@ def bill_items(request, bill_id=None):
     else:
         bill = None
 
-    # ========================================================
-    # GET ITEMS
-    # ========================================================
-
     if request.method == "GET":
 
         items = TrsBillItems.objects.all().order_by("bill_id", "sl_no") if bill_id is None else TrsBillItems.objects.filter(
@@ -446,10 +479,6 @@ def bill_items(request, bill_id=None):
             "status": True,
             "data": data
         })
-
-    # ========================================================
-    # POST ITEM
-    # ========================================================
 
     elif request.method == "POST":
 
@@ -508,10 +537,6 @@ def bill_item_detail(request, item_id):
             "message": "Bill item not found"
         }, status=404)
 
-    # ========================================================
-    # GET
-    # ========================================================
-
     if request.method == "GET":
 
         return JsonResponse({
@@ -527,10 +552,6 @@ def bill_item_detail(request, item_id):
                 "amount": item.amount,
             }
         })
-
-    # ========================================================
-    # PUT
-    # ========================================================
 
     elif request.method == "PUT":
 
@@ -552,7 +573,6 @@ def bill_item_detail(request, item_id):
             if "rate" in body:
                 item.rate = Decimal(str(body["rate"]))
 
-            # Always recalculate amount
             item.amount = item.quantity * item.rate
 
             item.save()
@@ -569,10 +589,6 @@ def bill_item_detail(request, item_id):
                 "message": str(e)
             }, status=400)
 
-    # ========================================================
-    # DELETE
-    # ========================================================
-
     elif request.method == "DELETE":
 
         item.delete()
@@ -586,6 +602,7 @@ def bill_item_detail(request, item_id):
         "status": False,
         "message": "Method not allowed"
     }, status=405)
+
 
 @csrf_exempt
 def supplier_master(request):

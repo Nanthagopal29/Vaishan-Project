@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BILL_API, SUPPLIER_API } from "../../config/api";
+
 // Helper to auto-generate a random/date-based invoice number
 const generateInvoiceNo = () => {
   const date = new Date();
@@ -100,7 +101,23 @@ const Create = () => {
     if (selectedSupplier) {
       // First 2 chars of GSTIN typically represent the State Code in India
       const stateCode = selectedSupplier.gstin ? selectedSupplier.gstin.substring(0, 2) : "";
-      const fullAddress = `${selectedSupplier.address || ""}\n${selectedSupplier.city || ""} - ${selectedSupplier.pincode || ""}`.trim();
+      
+      // Format the address to split by commas and place each part on a new line
+      const rawAddress = selectedSupplier.address || "";
+      const formattedAddressLines = rawAddress
+        .split(',')
+        .map(part => part.trim())
+        .filter(part => part !== ""); // Remove empty parts
+
+      // Combine city and pincode
+      const cityAndPin = [selectedSupplier.city, selectedSupplier.pincode]
+        .filter(Boolean)
+        .join(" - ");
+
+      // Join everything with newlines for the text area display
+      const fullAddress = [...formattedAddressLines, cityAndPin]
+        .filter(Boolean)
+        .join("\n");
 
       setBill((prev) => ({
         ...prev,
@@ -426,6 +443,7 @@ const Create = () => {
                 value={bill.invoice_no}
                 onChange={handleBillChange}
                 placeholder="Auto-Generated"
+                readOnly
               />
               <FormInput
                 label="Invoice Date"
@@ -497,87 +515,6 @@ const Create = () => {
               />
             </div>
           </section>
-
-          {/* ==================================================
-              DELIVERY / REFERENCES
-          =================================================== */}
-          {/* <section className="mb-6 rounded-sm bg-[#fdfdfc] p-6 shadow-xl border border-[#b9935a]/30">
-            <SectionTitle title="Delivery & Reference" />
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              <FormInput
-                label="Delivery Note"
-                name="delivery_note"
-                value={bill.delivery_note}
-                onChange={handleBillChange}
-              />
-              <FormInput
-                label="Reference No"
-                name="reference_no"
-                value={bill.reference_no}
-                onChange={handleBillChange}
-              />
-              <FormInput
-                label="Reference Date"
-                type="date"
-                name="reference_date"
-                value={bill.reference_date}
-                onChange={handleBillChange}
-              />
-              <FormInput
-                label="Buyer Order No"
-                name="buyer_order_no"
-                value={bill.buyer_order_no}
-                onChange={handleBillChange}
-              />
-              <FormInput
-                label="Dispatch Doc No"
-                name="dispatch_doc_no"
-                value={bill.dispatch_doc_no}
-                onChange={handleBillChange}
-              />
-              <FormInput
-                label="Dispatched Through"
-                name="dispatched_through"
-                value={bill.dispatched_through}
-                onChange={handleBillChange}
-              />
-              <FormInput
-                label="Delivery Note Date"
-                type="date"
-                name="delivery_note_date"
-                value={bill.delivery_note_date}
-                onChange={handleBillChange}
-              />
-              <FormInput
-                label="Destination"
-                name="destination"
-                value={bill.destination}
-                onChange={handleBillChange}
-              />
-              <FormInput
-                label="Payment Terms"
-                name="payment_terms"
-                value={bill.payment_terms}
-                onChange={handleBillChange}
-              />
-            </div>
-            <div className="mt-6">
-              <FormInput
-                label="Other References"
-                name="other_references"
-                value={bill.other_references}
-                onChange={handleBillChange}
-              />
-            </div>
-            <div className="mt-6">
-              <FormTextArea
-                label="Terms of Delivery"
-                name="terms_of_delivery"
-                value={bill.terms_of_delivery}
-                onChange={handleBillChange}
-              />
-            </div>
-          </section> */}
 
           {/* ==================================================
               ITEMS
@@ -797,13 +734,17 @@ const SectionTitle = ({ title, className = "" }) => (
 // ============================================================
 // INPUT COMPONENT
 // ============================================================
-const FormInput = ({ label, required = false, ...props }) => (
+const FormInput = ({ label, required = false, readOnly = false, ...props }) => (
   <div>
     <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-[#143d30]/80">
       {label}
       {required && <span className="ml-1 text-[#b9935a]">*</span>}
     </label>
-    <input {...props} className={inputClass} />
+    <input
+      {...props}
+      readOnly={readOnly}
+      className={`${inputClass} ${readOnly ? "cursor-not-allowed bg-[#f0ede8] text-[#143d30]/60 select-none" : ""}`}
+    />
   </div>
 );
 
@@ -836,7 +777,7 @@ const FormTextArea = ({ label, required = false, ...props }) => (
       {label}
       {required && <span className="ml-1 text-[#b9935a]">*</span>}
     </label>
-    <textarea {...props} rows={3} className={`${inputClass} resize-y`} />
+    <textarea {...props} rows={5} className={`${inputClass} resize-y`} />
   </div>
 );
 

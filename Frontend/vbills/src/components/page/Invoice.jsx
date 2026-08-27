@@ -187,16 +187,16 @@ const Invoice = React.forwardRef(({ bill, formatDate }, ref) => {
         {/* ROW 1: Supplier | Invoice meta */}
         <div style={S.row}>
           <div style={S.halfLeft}>
-            <p style={S.supplierName}>{bill.supplier_name || "Vaishan J Sports Wear"}</p>
+            <p style={S.supplierName}>Vaishan J Sports Wear</p>
             <p>Pillayar Kovil Street</p>
             <p>Mangalam Road</p>
-            <p>2nd Cress</p>
+            <p>2nd Cross</p>
             <p>Tirupur</p>
             <p style={{ marginTop: "4px" }}>
               <span style={{ fontWeight: "700" }}>GSTIN/UIN:</span> 33EAPPS6228P1ZS
             </p>
             <p>
-              <span style={{ fontWeight: "700" }}>State Name:</span> Tamil Nadu, Code: 33
+              <span style={{ fontWeight: "700" }}>State Name :</span> Tamil Nadu, Code : 33
             </p>
           </div>
 
@@ -249,7 +249,11 @@ const Invoice = React.forwardRef(({ bill, formatDate }, ref) => {
           <div style={S.halfLeft}>
             <span style={S.label}>Buyer (Bill to)</span>
             <p style={S.buyerName}>{bill.buyer_name || "-"}</p>
-            <p style={{ whiteSpace: "pre-line" }}>{bill.buyer_address || "-"}</p>
+            <div style={{ marginTop: "2px" }}>
+              {(bill.buyer_address || "-").split("\n").map((line, i) => (
+                <p key={i} style={{ margin: "1px 0" }}>{line}</p>
+              ))}
+            </div>
             <div style={{ marginTop: "6px" }}>
               <p>
                 <span style={{ display: "inline-block", width: "80px", fontWeight: "700" }}>GSTIN/UIN</span>

@@ -440,7 +440,7 @@ const Invoice = React.forwardRef(({ bill, formatDate }, ref) => {
             justifyContent: "space-between", alignItems: "flex-end", minHeight: "90px",
           }}>
             <p style={{ fontWeight: "700", fontSize: "11px" }}>
-              for {bill.supplier_name || "Vaishan J Sports Wear"}
+              for "Vaishan J Sports Wear"
             </p>
             <div style={{ marginTop: "48px" }}>
               <p style={{ fontSize: "10px" }}>Authorised Signatory</p>

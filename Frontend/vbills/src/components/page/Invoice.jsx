@@ -169,6 +169,8 @@ const Invoice = React.forwardRef(({ bill, formatDate }, ref) => {
 
   const totalQty = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
+  const isNonGst = bill.invoice_type === 'NON_GST' || (numCgstAmount === 0 && numSgstAmount === 0 && numCgstPercent === 0 && numSgstPercent === 0);
+
   const fmtDate = formatDate || ((v) => {
     if (!v) return "-";
     const d = new Date(v);
@@ -180,7 +182,7 @@ const Invoice = React.forwardRef(({ bill, formatDate }, ref) => {
   return (
     <div ref={ref} style={S.wrapper}>
       {/* Title */}
-      <p style={S.title}>Tax Invoice</p>
+      <p style={S.title}>{isNonGst ? "INVOICE" : "Tax Invoice"}</p>
 
       <div style={S.outerBorder}>
 
@@ -353,32 +355,36 @@ const Invoice = React.forwardRef(({ bill, formatDate }, ref) => {
             </tr>
 
             {/* CGST */}
-            <tr>
-              <td style={S.td}></td>
-              <td style={{ ...S.td, textAlign: "right", fontWeight: "700", fontStyle: "italic" }}>
-                CGST @ {numCgstPercent.toFixed(1)}%
-              </td>
-              <td style={S.td}></td>
-              <td style={{ ...S.td, textAlign: "right" }}>{numCgstPercent.toFixed(2)} %</td>
-              <td style={S.td}></td>
-              <td style={{ ...S.tdLast, textAlign: "right", fontWeight: "700", padding: "5px 6px" }}>
-                {formatNum(numCgstAmount)}
-              </td>
-            </tr>
+            {!isNonGst && (
+              <tr>
+                <td style={S.td}></td>
+                <td style={{ ...S.td, textAlign: "right", fontWeight: "700", fontStyle: "italic" }}>
+                  CGST @ {numCgstPercent.toFixed(1)}%
+                </td>
+                <td style={S.td}></td>
+                <td style={{ ...S.td, textAlign: "right" }}>{numCgstPercent.toFixed(2)} %</td>
+                <td style={S.td}></td>
+                <td style={{ ...S.tdLast, textAlign: "right", fontWeight: "700", padding: "5px 6px" }}>
+                  {formatNum(numCgstAmount)}
+                </td>
+              </tr>
+            )}
 
             {/* SGST */}
-            <tr>
-              <td style={S.td}></td>
-              <td style={{ ...S.td, textAlign: "right", fontWeight: "700", fontStyle: "italic" }}>
-                SGST @ {numSgstPercent.toFixed(1)}%
-              </td>
-              <td style={S.td}></td>
-              <td style={{ ...S.td, textAlign: "right" }}>{numSgstPercent.toFixed(2)} %</td>
-              <td style={S.td}></td>
-              <td style={{ ...S.tdLast, textAlign: "right", fontWeight: "700", padding: "5px 6px" }}>
-                {formatNum(numSgstAmount)}
-              </td>
-            </tr>
+            {!isNonGst && (
+              <tr>
+                <td style={S.td}></td>
+                <td style={{ ...S.td, textAlign: "right", fontWeight: "700", fontStyle: "italic" }}>
+                  SGST @ {numSgstPercent.toFixed(1)}%
+                </td>
+                <td style={S.td}></td>
+                <td style={{ ...S.td, textAlign: "right" }}>{numSgstPercent.toFixed(2)} %</td>
+                <td style={S.td}></td>
+                <td style={{ ...S.tdLast, textAlign: "right", fontWeight: "700", padding: "5px 6px" }}>
+                  {formatNum(numSgstAmount)}
+                </td>
+              </tr>
+            )}
 
             {/* Round Off */}
             <tr>

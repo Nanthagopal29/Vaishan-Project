@@ -20,6 +20,12 @@ const LogoutIcon = () => (
   </svg>
 );
 
+const CreateNonGstBillIcon = () => (
+  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
 const Home = () => {
   const navigate = useNavigate();
 
@@ -32,19 +38,19 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-[#e9ece4] font-sans">
-      
+
       {/* Top Navigation Bar */}
       <nav className="bg-[#143d30] border-b-4 border-[#b9935a] shadow-lg sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
-            
+
             {/* Branding & Logo */}
             <div className="flex items-center gap-4">
               {/* Logo Image - Pulls from your public folder */}
               <div className="w-12 h-12 bg-white rounded-full p-0.5 border-2 border-[#b9935a] shadow-md overflow-hidden flex items-center justify-center">
-                <img 
-                  src="/vaishan.png" 
-                  alt="Logo" 
+                <img
+                  src="/vaishan.png"
+                  alt="Logo"
                   className="w-full h-full object-cover rounded-full"
                   onError={(e) => {
                     // Fallback if the image doesn't load
@@ -76,8 +82,8 @@ const Home = () => {
       </nav>
 
       {/* Main Content Area */}
-      <main className="max-w-5xl mx-auto px-6 py-12 sm:py-20">
-        
+      <main className="max-w-6xl mx-auto px-6 py-12 sm:py-20">
+
         {/* Page Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-serif text-[#143d30] mb-4">
@@ -93,11 +99,11 @@ const Home = () => {
         </div>
 
         {/* Action Cards Grid */}
-        <div className="grid sm:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          
-          {/* Create Bills Card */}
-          <button 
-            onClick={() => navigate('/create-bill')}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+
+          {/* Create GST Bills Card */}
+          <button
+            onClick={() => navigate('/create-bill', { state: { invoice_type: 'GST' } })}
             className="group relative bg-[#fdfdfc] p-8 sm:p-10 rounded-sm shadow-xl border border-[#b9935a]/30 hover:border-[#b9935a] hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 text-left flex flex-col items-center text-center overflow-hidden"
           >
             {/* Decorative Corner Borders */}
@@ -107,9 +113,30 @@ const Home = () => {
             <div className="w-20 h-20 bg-[#143d30]/5 text-[#143d30] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#143d30] group-hover:text-[#b9935a] transition-colors duration-300">
               <CreateBillIcon />
             </div>
-            <h3 className="text-2xl font-serif text-[#143d30] mb-3">Create Bills</h3>
+            <h3 className="text-2xl font-serif text-[#143d30] mb-3">Create Tax Invoice</h3>
             <p className="text-[#143d30]/70 text-sm leading-relaxed">
-              Generate new invoices for vintage fashion purchases. Add items, calculate totals, and issue official receipts to your customers.
+              Generate GST tax invoices with itemized rates, CGST/SGST calculations, and official tax breakdowns.
+            </p>
+            <div className="mt-8 text-[#b9935a] font-bold text-sm tracking-widest uppercase flex items-center gap-2 group-hover:gap-4 transition-all">
+              Proceed <span>&rarr;</span>
+            </div>
+          </button>
+
+          {/* Create Non-GST Bills Card */}
+          <button
+            onClick={() => navigate('/create-bill?type=NON_GST', { state: { invoice_type: 'NON_GST' } })}
+            className="group relative bg-[#fdfdfc] p-8 sm:p-10 rounded-sm shadow-xl border border-[#b9935a]/30 hover:border-[#b9935a] hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 text-left flex flex-col items-center text-center overflow-hidden"
+          >
+            {/* Decorative Corner Borders */}
+            <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#b9935a]/40 group-hover:border-[#b9935a] transition-colors m-2"></div>
+            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#b9935a]/40 group-hover:border-[#b9935a] transition-colors m-2"></div>
+
+            <div className="w-20 h-20 bg-[#143d30]/5 text-[#143d30] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#143d30] group-hover:text-[#b9935a] transition-colors duration-300">
+              <CreateNonGstBillIcon />
+            </div>
+            <h3 className="text-2xl font-serif text-[#143d30] mb-3">Create Non-GST Invoice</h3>
+            <p className="text-[#143d30]/70 text-sm leading-relaxed">
+              Generate simple estimate invoices without GST calculation. Ideal for direct sales, quotes, or cash receipts.
             </p>
             <div className="mt-8 text-[#b9935a] font-bold text-sm tracking-widest uppercase flex items-center gap-2 group-hover:gap-4 transition-all">
               Proceed <span>&rarr;</span>
@@ -117,7 +144,7 @@ const Home = () => {
           </button>
 
           {/* View Bills Card */}
-          <button 
+          <button
             onClick={() => navigate('/view-bills')}
             className="group relative bg-[#fdfdfc] p-8 sm:p-10 rounded-sm shadow-xl border border-[#b9935a]/30 hover:border-[#b9935a] hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 text-left flex flex-col items-center text-center overflow-hidden"
           >
@@ -130,7 +157,7 @@ const Home = () => {
             </div>
             <h3 className="text-2xl font-serif text-[#143d30] mb-3">View Bills</h3>
             <p className="text-[#143d30]/70 text-sm leading-relaxed">
-              Access the billing archive. Search, filter, and review historical invoices and transaction records for all previous sales.
+              Access the billing archive. Search, filter, and review historical GST & Non-GST invoices and transaction records.
             </p>
             <div className="mt-8 text-[#b9935a] font-bold text-sm tracking-widest uppercase flex items-center gap-2 group-hover:gap-4 transition-all">
               Proceed <span>&rarr;</span>

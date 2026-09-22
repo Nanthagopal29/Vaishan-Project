@@ -23,6 +23,7 @@ class SupplierMaster(models.Model):
 class TrsBills(models.Model):
     id = models.BigAutoField(primary_key=True)
     invoice_no = models.CharField(unique=True, max_length=50)
+    invoice_type = models.CharField(max_length=20, default='GST', blank=True, null=True)
     invoice_date = models.DateField()
     supplier = models.ForeignKey('SupplierMaster', models.DO_NOTHING, blank=True, null=True)
     buyer_name = models.CharField(max_length=150, blank=True, null=True)

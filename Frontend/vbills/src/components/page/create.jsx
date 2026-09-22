@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { BILL_API, SUPPLIER_API } from "../../config/api";
 
 // Helper to auto-generate a sequential invoice number
@@ -12,16 +12,22 @@ const generateInvoiceNo = (sequence) => {
 
 const Create = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const initialType = location.state?.invoice_type || searchParams.get("type") || "GST";
+  const [invoiceType, setInvoiceType] = useState(initialType);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-  
+
   // Track the invoice sequence starting at 20
   const [invoiceSequence, setInvoiceSequence] = useState(20);
   const [suppliers, setSuppliers] = useState([]);
 
   const [bill, setBill] = useState({
     invoice_no: generateInvoiceNo(20),
+    invoice_type: initialType,
     invoice_date: new Date().toISOString().split("T")[0],
 
     supplier_id: "",
@@ -46,8 +52,8 @@ const Create = () => {
     other_references: "",
     terms_of_delivery: "",
 
-    cgst_percentage: 2.5,
-    sgst_percentage: 2.5,
+    cgst_percentage: initialType === "NON_GST" ? 0 : 2.5,
+    sgst_percentage: initialType === "NON_GST" ? 0 : 2.5,
     round_off: 0,
   });
 
@@ -75,13 +81,23 @@ const Create = () => {
         console.error("Failed to fetch suppliers:", err);
       }
     };
-    
+
     fetchSuppliers();
   }, []);
 
   // ==========================================================
   // BILL FIELD CHANGE
   // ==========================================================
+  const handleTypeChange = (type) => {
+    setInvoiceType(type);
+    setBill((prev) => ({
+      ...prev,
+      invoice_type: type,
+      cgst_percentage: type === "NON_GST" ? 0 : 2.5,
+      sgst_percentage: type === "NON_GST" ? 0 : 2.5,
+    }));
+  };
+
   const handleBillChange = (e) => {
     const { name, value } = e.target;
     setBill((prev) => ({
@@ -99,7 +115,7 @@ const Create = () => {
 
     if (selectedSupplier) {
       const stateCode = selectedSupplier.gstin ? selectedSupplier.gstin.substring(0, 2) : "";
-      
+
       const rawAddress = selectedSupplier.address || "";
       const formattedAddressLines = rawAddress
         .split(',')
@@ -193,14 +209,16 @@ const Create = () => {
   }, [items]);
 
   const cgstAmount = useMemo(() => {
+    if (invoiceType === "NON_GST") return 0;
     const percentage = Number(bill.cgst_percentage) || 0;
     return (subtotal * percentage) / 100;
-  }, [subtotal, bill.cgst_percentage]);
+  }, [subtotal, bill.cgst_percentage, invoiceType]);
 
   const sgstAmount = useMemo(() => {
+    if (invoiceType === "NON_GST") return 0;
     const percentage = Number(bill.sgst_percentage) || 0;
     return (subtotal * percentage) / 100;
-  }, [subtotal, bill.sgst_percentage]);
+  }, [subtotal, bill.sgst_percentage, invoiceType]);
 
   const finalTotal = subtotal + cgstAmount + sgstAmount + (Number(bill.round_off) || 0);
 
@@ -210,6 +228,7 @@ const Create = () => {
   const resetForm = (nextSequence = invoiceSequence) => {
     setBill({
       invoice_no: generateInvoiceNo(nextSequence),
+      invoice_type: invoiceType,
       invoice_date: new Date().toISOString().split("T")[0],
       supplier_id: "",
       buyer_name: "",
@@ -228,8 +247,8 @@ const Create = () => {
       payment_terms: "",
       other_references: "",
       terms_of_delivery: "",
-      cgst_percentage: 2.5,
-      sgst_percentage: 2.5,
+      cgst_percentage: invoiceType === "NON_GST" ? 0 : 2.5,
+      sgst_percentage: invoiceType === "NON_GST" ? 0 : 2.5,
       round_off: 0,
     });
     setItems([
@@ -263,6 +282,7 @@ const Create = () => {
 
       const billPayload = {
         invoice_no: bill.invoice_no,
+        invoice_type: invoiceType,
         invoice_date: bill.invoice_date,
         supplier_id: Number(bill.supplier_id),
         buyer_name: bill.buyer_name,
@@ -282,9 +302,9 @@ const Create = () => {
         other_references: bill.other_references || null,
         terms_of_delivery: bill.terms_of_delivery || null,
         subtotal: Number(subtotal.toFixed(2)),
-        cgst_percentage: Number(bill.cgst_percentage) || 0,
+        cgst_percentage: invoiceType === "NON_GST" ? 0 : (Number(bill.cgst_percentage) || 0),
         cgst_amount: Number(cgstAmount.toFixed(2)),
-        sgst_percentage: Number(bill.sgst_percentage) || 0,
+        sgst_percentage: invoiceType === "NON_GST" ? 0 : (Number(bill.sgst_percentage) || 0),
         sgst_amount: Number(sgstAmount.toFixed(2)),
         round_off: Number(bill.round_off) || 0,
         total_amount: Number(finalTotal.toFixed(2)),
@@ -318,7 +338,7 @@ const Create = () => {
       }
 
       setSuccess(successMsg);
-      
+
       // Increment the sequence for the next invoice
       const nextSeq = invoiceSequence + 1;
       setInvoiceSequence(nextSeq);
@@ -344,7 +364,7 @@ const Create = () => {
           >
             ← Back to Dashboard
           </button>
-        </div>        
+        </div>
         <div className="mb-8 flex flex-col gap-5 rounded-sm bg-[#fdfdfc] p-8 shadow-xl border border-[#b9935a]/30 relative md:flex-row md:items-center md:justify-between overflow-hidden">
           <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#b9935a]/40 m-2"></div>
           <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#b9935a]/40 m-2"></div>
@@ -373,12 +393,52 @@ const Create = () => {
 
           <div className="text-left md:text-right relative z-10 mt-4 md:mt-0">
             <p className="text-2xl font-serif tracking-wide text-[#143d30] uppercase mb-1">
-              Tax Invoice
+              {invoiceType === "NON_GST" ? "Non-GST Invoice" : "Tax Invoice"}
             </p>
             <p className="text-xs font-medium tracking-widest text-[#143d30]/60 uppercase">
               Billing Management
             </p>
           </div>
+        </div>
+
+        {/* Invoice Type Toggle Bar */}
+        <div className="mb-6 bg-[#fdfdfc] p-4 rounded-sm shadow-md border border-[#b9935a]/30 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-[#143d30] uppercase tracking-wider">Invoice Type:</span>
+            <div className="inline-flex rounded-md shadow-sm border border-[#b9935a]/40 p-1 bg-[#e9ece4]">
+              <button
+                type="button"
+                onClick={() => handleTypeChange("GST")}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded transition-all ${
+                  invoiceType === "GST"
+                    ? "bg-[#143d30] text-[#e9ece4] shadow"
+                    : "text-[#143d30] hover:bg-[#b9935a]/20"
+                }`}
+              >
+                GST Tax Invoice (2.5% + 2.5%)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTypeChange("NON_GST")}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded transition-all ${
+                  invoiceType === "NON_GST"
+                    ? "bg-[#143d30] text-[#e9ece4] shadow"
+                    : "text-[#143d30] hover:bg-[#b9935a]/20"
+                }`}
+              >
+                Non-GST Invoice / Estimate
+              </button>
+            </div>
+          </div>
+          {invoiceType === "NON_GST" ? (
+            <span className="text-xs text-[#143d30] font-bold bg-[#143d30]/10 px-3 py-1 rounded border border-[#b9935a]/30">
+              ⚡ Non-GST Mode (Tax rates set to 0%)
+            </span>
+          ) : (
+            <span className="text-xs text-[#143d30]/70 font-semibold">
+              GST Tax Mode (CGST 2.5% + SGST 2.5%)
+            </span>
+          )}
         </div>
 
         {success && (
@@ -390,7 +450,7 @@ const Create = () => {
 
         {error && (
           <div className="mb-6 rounded-sm border border-red-900/20 bg-red-900/10 px-5 py-4 text-sm font-semibold tracking-wide text-red-800 flex items-center gap-3 shadow-sm">
-             <svg className="w-5 h-5 text-red-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <svg className="w-5 h-5 text-red-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             {error}
           </div>
         )}
@@ -579,41 +639,45 @@ const Create = () => {
                 </strong>
               </div>
 
-              <div className="grid grid-cols-[1fr_80px_120px] items-center gap-3 border-b border-[#b9935a]/30 py-3">
-                <span className="text-sm font-semibold tracking-wider text-[#143d30]/70 uppercase">
-                  CGST (%)
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  name="cgst_percentage"
-                  value={bill.cgst_percentage}
-                  onChange={handleBillChange}
-                  className="rounded-sm border border-[#b9935a]/50 bg-[#e9ece4]/50 px-2 py-2 text-sm text-[#143d30] outline-none focus:border-[#143d30] focus:bg-white transition-all text-center"
-                />
-                <strong className="text-right text-sm text-[#143d30]">
-                  ₹ {cgstAmount.toFixed(2)}
-                </strong>
-              </div>
+              {invoiceType !== "NON_GST" && (
+                <>
+                  <div className="grid grid-cols-[1fr_80px_120px] items-center gap-3 border-b border-[#b9935a]/30 py-3">
+                    <span className="text-sm font-semibold tracking-wider text-[#143d30]/70 uppercase">
+                      CGST (%)
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      name="cgst_percentage"
+                      value={bill.cgst_percentage}
+                      onChange={handleBillChange}
+                      className="rounded-sm border border-[#b9935a]/50 bg-[#e9ece4]/50 px-2 py-2 text-sm text-[#143d30] outline-none focus:border-[#143d30] focus:bg-white transition-all text-center"
+                    />
+                    <strong className="text-right text-sm text-[#143d30]">
+                      ₹ {cgstAmount.toFixed(2)}
+                    </strong>
+                  </div>
 
-              <div className="grid grid-cols-[1fr_80px_120px] items-center gap-3 border-b border-[#b9935a]/30 py-3">
-                <span className="text-sm font-semibold tracking-wider text-[#143d30]/70 uppercase">
-                  SGST (%)
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  name="sgst_percentage"
-                  value={bill.sgst_percentage}
-                  onChange={handleBillChange}
-                  className="rounded-sm border border-[#b9935a]/50 bg-[#e9ece4]/50 px-2 py-2 text-sm text-[#143d30] outline-none focus:border-[#143d30] focus:bg-white transition-all text-center"
-                />
-                <strong className="text-right text-sm text-[#143d30]">
-                  ₹ {sgstAmount.toFixed(2)}
-                </strong>
-              </div>
+                  <div className="grid grid-cols-[1fr_80px_120px] items-center gap-3 border-b border-[#b9935a]/30 py-3">
+                    <span className="text-sm font-semibold tracking-wider text-[#143d30]/70 uppercase">
+                      SGST (%)
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      name="sgst_percentage"
+                      value={bill.sgst_percentage}
+                      onChange={handleBillChange}
+                      className="rounded-sm border border-[#b9935a]/50 bg-[#e9ece4]/50 px-2 py-2 text-sm text-[#143d30] outline-none focus:border-[#143d30] focus:bg-white transition-all text-center"
+                    />
+                    <strong className="text-right text-sm text-[#143d30]">
+                      ₹ {sgstAmount.toFixed(2)}
+                    </strong>
+                  </div>
+                </>
+              )}
 
               <div className="grid grid-cols-[1fr_80px_120px] items-center gap-3 border-b border-[#b9935a]/30 py-3">
                 <span className="text-sm font-semibold tracking-wider text-[#143d30]/70 uppercase">

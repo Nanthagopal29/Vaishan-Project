@@ -20,7 +20,7 @@ const numberToWords = (num) => {
   if (parsed.toString().length > 9) return "Overflow";
 
   let n = ("000000000" + parsed).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-  if (!n) return ""; 
+  if (!n) return "";
 
   let str = "";
   str += Number(n[1]) !== 0 ? (a[Number(n[1])] || b[Number(n[1][0])] + " " + a[Number(n[1][1])]) + "Crore " : "";
@@ -52,6 +52,7 @@ const View = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("ALL");
 
   const [selectedBill, setSelectedBill] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -86,7 +87,7 @@ const View = () => {
       const fresh = result.data || [];
       setBills(fresh);
       // Persist to cache for next visit
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify(fresh)); } catch {}
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(fresh)); } catch { }
     } catch (err) {
       console.error(err);
       setError(err.message || "Unable to load bills");
@@ -107,9 +108,13 @@ const View = () => {
   // ==========================================================
   const filteredBills = useMemo(() => {
     const value = search.toLowerCase().trim();
-    if (!value) return bills;
-
     return bills.filter((bill) => {
+      const isNonGst = bill.invoice_type === "NON_GST" || (Number(bill.cgst_amount || 0) === 0 && Number(bill.sgst_amount || 0) === 0 && Number(bill.cgst_percentage || 0) === 0);
+      if (typeFilter === "GST" && isNonGst) return false;
+      if (typeFilter === "NON_GST" && !isNonGst) return false;
+
+      if (!value) return true;
+
       return (
         String(bill.invoice_no || "").toLowerCase().includes(value) ||
         String(bill.buyer_name || "").toLowerCase().includes(value) ||
@@ -118,7 +123,7 @@ const View = () => {
         String(bill.supplier_id || "").toLowerCase().includes(value)
       );
     });
-  }, [bills, search]);
+  }, [bills, search, typeFilter]);
 
   const formatCurrency = (value) => {
     const number = Number(value || 0);
@@ -225,7 +230,7 @@ const View = () => {
             useCORS: true,
             backgroundColor: "#ffffff",
             width: target.offsetWidth, // Lock width strictly to target element bounds
-            windowWidth: 800, 
+            windowWidth: 800,
           });
 
           generatePdfFromCanvas(canvas, `${billData.invoice_no || "Invoice"}.pdf`);
@@ -236,7 +241,7 @@ const View = () => {
           setHiddenBill(null);
           setDownloadingId(null);
         }
-      }, 600); 
+      }, 600);
     } catch (err) {
       console.error(err);
       setError(err.message || "Unable to download invoice");
@@ -254,13 +259,13 @@ const View = () => {
     try {
       setPdfLoading(true);
       const target = invoiceRef.current;
-      
+
       const canvas = await html2canvas(target, {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
         width: target.offsetWidth, // Force html2canvas to not stretch to window inner width
-        windowWidth: target.offsetWidth, 
+        windowWidth: target.offsetWidth,
       });
 
       generatePdfFromCanvas(canvas, `${selectedBill.invoice_no || "Invoice"}.pdf`);
@@ -373,15 +378,27 @@ const View = () => {
               <div>
                 <h2 className="text-xl font-serif tracking-wider text-[#143d30] uppercase">Invoice Archive</h2>
               </div>
-              <div className="relative w-full md:w-96">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#143d30]/50">🔍</span>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search invoice, buyer, GSTIN..."
-                  className="w-full rounded-sm border border-[#b9935a]/40 bg-[#e9ece4]/30 py-3 pl-11 pr-4 text-sm text-[#143d30] outline-none transition-all placeholder:text-[#143d30]/40 focus:border-[#143d30] focus:bg-white focus:ring-1 focus:ring-[#143d30]/50"
-                />
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="w-full sm:w-auto rounded-sm border border-[#b9935a]/40 bg-[#e9ece4]/40 py-3 px-4 text-xs font-bold uppercase tracking-wider text-[#143d30] outline-none transition-all focus:border-[#143d30] focus:bg-white"
+                >
+                  <option value="ALL">All Types</option>
+                  <option value="GST">GST Tax Invoices</option>
+                  <option value="NON_GST">Non-GST Invoices</option>
+                </select>
+
+                <div className="relative w-full sm:w-80">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#143d30]/50">🔍</span>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search invoice, buyer, GSTIN..."
+                    className="w-full rounded-sm border border-[#b9935a]/40 bg-[#e9ece4]/30 py-3 pl-11 pr-4 text-sm text-[#143d30] outline-none transition-all placeholder:text-[#143d30]/40 focus:border-[#143d30] focus:bg-white focus:ring-1 focus:ring-[#143d30]/50"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -398,7 +415,7 @@ const View = () => {
               <div className="mb-4 text-5xl text-[#b9935a]/40 font-serif italic">V&J</div>
               <h3 className="text-xl font-serif text-[#143d30] tracking-wider uppercase mb-2">No Records Found</h3>
               <p className="text-sm font-medium text-[#143d30]/60">
-                {search ? "Adjust your search parameters." : "Create your first invoice to populate this ledger."}
+                {search || typeFilter !== "ALL" ? "Adjust your search or filter parameters." : "Create your first invoice to populate this ledger."}
               </p>
             </div>
           ) : (
@@ -420,13 +437,25 @@ const View = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-[#fdfdfc]">
-                  {filteredBills.map((bill, index) => (
-                    <tr key={bill.id} className="border-b border-[#b9935a]/20 last:border-b-0 transition-colors hover:bg-[#e9ece4]/20">
-                      <td className={tdClass}>{index + 1}</td>
-                      <td className={tdClass}>
-                        <p className="font-bold text-[#143d30]">{bill.invoice_no || "-"}</p>
-                        <p className="mt-1 text-xs text-[#b9935a] font-semibold">ID: {bill.id}</p>
-                      </td>
+                  {filteredBills.map((bill, index) => {
+                    const isBillNonGst = bill.invoice_type === "NON_GST" || (Number(bill.cgst_amount || 0) === 0 && Number(bill.sgst_amount || 0) === 0 && Number(bill.cgst_percentage || 0) === 0);
+                    return (
+                      <tr key={bill.id} className="border-b border-[#b9935a]/20 last:border-b-0 transition-colors hover:bg-[#e9ece4]/20">
+                        <td className={tdClass}>{index + 1}</td>
+                        <td className={tdClass}>
+                          <p className="font-bold text-[#143d30]">{bill.invoice_no || "-"}</p>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            {isBillNonGst ? (
+                              <span className="rounded bg-[#b9935a]/20 text-[#143d30] border border-[#b9935a]/50 px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                                Non-GST
+                              </span>
+                            ) : (
+                              <span className="rounded bg-[#143d30]/15 text-[#143d30] border border-[#143d30]/30 px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                                GST
+                              </span>
+                            )}
+                          </div>
+                        </td>
                       <td className={tdClass}>{formatDate(bill.invoice_date)}</td>
                       <td className={tdClass}>
                         <p className="font-bold text-[#143d30]">{bill.buyer_name || "-"}</p>
@@ -479,7 +508,8 @@ const View = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>

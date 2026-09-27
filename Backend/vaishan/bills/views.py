@@ -1,5 +1,7 @@
 from decimal import Decimal
-
+import json
+import re
+from datetime import datetime, date
 
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -9,9 +11,51 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.conf import settings
 from django.db import transaction
-import json
 
 from .models import TrsBills, TrsBillItems, SupplierMaster
+
+
+def get_financial_year(d=None):
+    if not d:
+        d = date.today()
+    elif isinstance(d, str):
+        try:
+            d = datetime.strptime(d.strip(), "%Y-%m-%d").date()
+        except Exception:
+            d = date.today()
+    start_year = d.year if d.month >= 4 else d.year - 1
+    end_year = start_year + 1
+    return f"{start_year}-{str(end_year)[-2:]}"
+
+
+def get_next_invoice_number(target_date=None):
+    fy = get_financial_year(target_date)
+    existing_bills = TrsBills.objects.all()
+    max_seq = 0
+    for bill in existing_bills:
+        inv_no = (bill.invoice_no or "").strip()
+        # Look for sequence matching current FY: e.g. VI/2026-27/20
+        match_fy = re.search(rf"VI/{re.escape(fy)}/(\d+)", inv_no, re.IGNORECASE)
+        if match_fy:
+            try:
+                seq = int(match_fy.group(1))
+                if seq > max_seq:
+                    max_seq = seq
+            except ValueError:
+                pass
+        else:
+            match_any = re.search(r"/(\d+)$", inv_no)
+            if match_any:
+                try:
+                    seq = int(match_any.group(1))
+                    if seq > max_seq:
+                        max_seq = seq
+                except ValueError:
+                    pass
+
+    next_seq = max_seq + 1 if max_seq > 0 else 1
+    return f"VI/{fy}/{next_seq}"
+
 
 
 def index(request):
@@ -27,6 +71,7 @@ def _serialize_bill(bill, include_items=False):
     data = {
         "id": bill.id,
         "invoice_no": bill.invoice_no,
+        "invoice_type": getattr(bill, "invoice_type", "GST"),
         "invoice_date": bill.invoice_date,
         "supplier_id": bill.supplier_id,
         "supplier_name": supplier_name,
@@ -184,6 +229,21 @@ def login_api(request):
 
 
 @csrf_exempt
+def next_invoice_number(request):
+    if request.method != "GET":
+        return JsonResponse({"status": False, "message": "Method not allowed"}, status=405)
+
+    target_date = request.GET.get("date")
+    next_no = get_next_invoice_number(target_date)
+    fy = get_financial_year(target_date)
+    return JsonResponse({
+        "status": True,
+        "next_invoice_no": next_no,
+        "financial_year": fy,
+    })
+
+
+@csrf_exempt
 def bills(request):
 
     if request.method == "GET":
@@ -202,6 +262,18 @@ def bills(request):
 
             supplier_id = body.get("supplier_id")
             items_data = body.get("items", [])
+            invoice_no = (body.get("invoice_no") or "").strip()
+            invoice_date = body.get("invoice_date")
+            invoice_type = body.get("invoice_type") or "GST"
+
+            if not invoice_no:
+                invoice_no = get_next_invoice_number(invoice_date)
+            elif TrsBills.objects.filter(invoice_no=invoice_no).exists():
+                suggested_no = get_next_invoice_number(invoice_date)
+                return JsonResponse({
+                    "status": False,
+                    "message": f"Invoice number '{invoice_no}' already exists. Next available invoice number is '{suggested_no}'."
+                }, status=400)
 
             supplier = None
             if supplier_id:
@@ -209,8 +281,9 @@ def bills(request):
 
             with transaction.atomic():
                 bill = TrsBills.objects.create(
-                    invoice_no=body.get("invoice_no"),
-                    invoice_date=body.get("invoice_date"),
+                    invoice_no=invoice_no,
+                    invoice_type=invoice_type,
+                    invoice_date=invoice_date,
                     supplier=supplier,
                     buyer_name=body.get("buyer_name"),
                     buyer_address=body.get("buyer_address"),

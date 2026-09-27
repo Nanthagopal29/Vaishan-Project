@@ -1,13 +1,60 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { BILL_API, SUPPLIER_API } from "../../config/api";
+import { BILL_API, NEXT_INVOICE_API, SUPPLIER_API } from "../../config/api";
+
+const CACHE_KEY = "vj_bills_cache";
+
+// Helper to calculate Indian Financial Year (April 1 to March 31)
+const getFinancialYear = (dateStr) => {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  if (isNaN(d.getTime())) {
+    const fallback = new Date();
+    const startYear = fallback.getMonth() >= 3 ? fallback.getFullYear() : fallback.getFullYear() - 1;
+    return `${startYear}-${String(startYear + 1).slice(-2)}`;
+  }
+  const year = d.getFullYear();
+  // Month is 0-indexed in JS (January is 0, April is 3)
+  const isAfterOrInApril = d.getMonth() >= 3;
+  const startYear = isAfterOrInApril ? year : year - 1;
+  const endYear = startYear + 1;
+  return `${startYear}-${String(endYear).slice(-2)}`;
+};
 
 // Helper to auto-generate a sequential invoice number
-const generateInvoiceNo = (sequence) => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const nextYear = String(year + 1).slice(-2);
-  return `VI/${year}-${nextYear}/${sequence}`;
+const generateInvoiceNo = (sequence, dateStr) => {
+  const fy = getFinancialYear(dateStr);
+  return `VI/${fy}/${sequence}`;
+};
+
+// Helper to extract the highest sequence number from an existing bills list
+const getNextInvoiceSequence = (billsList, targetDate) => {
+  const targetFY = getFinancialYear(targetDate);
+  let maxSeq = 0;
+
+  if (Array.isArray(billsList)) {
+    billsList.forEach((b) => {
+      const invNo = String(b.invoice_no || "").trim();
+      // Match current financial year pattern: VI/YYYY-YY/<sequence>
+      const fyMatch = invNo.match(new RegExp(`VI\/${targetFY}\/(\\d+)`, "i"));
+      if (fyMatch && fyMatch[1]) {
+        const num = parseInt(fyMatch[1], 10);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      } else {
+        // Fallback: match any trailing /<number>
+        const anyMatch = invNo.match(/\/(\d+)$/);
+        if (anyMatch && anyMatch[1]) {
+          const num = parseInt(anyMatch[1], 10);
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      }
+    });
+  }
+
+  return maxSeq > 0 ? maxSeq + 1 : 1;
 };
 
 const Create = () => {
@@ -21,14 +68,25 @@ const Create = () => {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
-  // Track the invoice sequence starting at 20
-  const [invoiceSequence, setInvoiceSequence] = useState(20);
+  const initialDate = new Date().toISOString().split("T")[0];
+  const cachedBills = (() => {
+    try {
+      const saved = localStorage.getItem(CACHE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })();
+  const initialSeq = getNextInvoiceSequence(cachedBills, initialDate);
+
+  const [invoiceSequence, setInvoiceSequence] = useState(initialSeq);
+  const [isCustomInvoiceNo, setIsCustomInvoiceNo] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
 
   const [bill, setBill] = useState({
-    invoice_no: generateInvoiceNo(20),
+    invoice_no: generateInvoiceNo(initialSeq, initialDate),
     invoice_type: initialType,
-    invoice_date: new Date().toISOString().split("T")[0],
+    invoice_date: initialDate,
 
     supplier_id: "",
 
@@ -68,10 +126,11 @@ const Create = () => {
   ]);
 
   // ==========================================================
-  // FETCH SUPPLIERS ON MOUNT
+  // FETCH SUPPLIERS & LATEST INVOICE SEQUENCE ON MOUNT
   // ==========================================================
   useEffect(() => {
-    const fetchSuppliers = async () => {
+    const fetchInitialData = async () => {
+      // 1. Fetch Suppliers
       try {
         const response = await fetch(SUPPLIER_API);
         const data = await response.json();
@@ -80,9 +139,61 @@ const Create = () => {
       } catch (err) {
         console.error("Failed to fetch suppliers:", err);
       }
+
+      // 2. Fetch Latest Invoice Sequence
+      try {
+        let gotNext = false;
+        try {
+          const nextRes = await fetch(`${NEXT_INVOICE_API}?date=${initialDate}`);
+          if (nextRes.ok) {
+            const nextData = await nextRes.json();
+            if (nextData.status && nextData.next_invoice_no) {
+              gotNext = true;
+              if (!isCustomInvoiceNo) {
+                setBill((prev) => ({
+                  ...prev,
+                  invoice_no: nextData.next_invoice_no,
+                }));
+                const seqMatch = nextData.next_invoice_no.match(/\/(\d+)$/);
+                if (seqMatch) {
+                  setInvoiceSequence(parseInt(seqMatch[1], 10));
+                }
+              }
+            }
+          }
+        } catch {
+          // If NEXT_INVOICE_API is not yet deployed, fallback to BILL_API
+        }
+
+        if (!gotNext) {
+          const billsRes = await fetch(BILL_API, {
+            method: "GET",
+            credentials: "include",
+          });
+          if (billsRes.ok) {
+            const billsData = await billsRes.json();
+            if (billsData.status && Array.isArray(billsData.data)) {
+              try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify(billsData.data));
+              } catch {}
+
+              const calculatedSeq = getNextInvoiceSequence(billsData.data, initialDate);
+              setInvoiceSequence(calculatedSeq);
+              if (!isCustomInvoiceNo) {
+                setBill((prev) => ({
+                  ...prev,
+                  invoice_no: generateInvoiceNo(calculatedSeq, prev.invoice_date || initialDate),
+                }));
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch latest bills sequence:", err);
+      }
     };
 
-    fetchSuppliers();
+    fetchInitialData();
   }, []);
 
   // ==========================================================
@@ -100,10 +211,16 @@ const Create = () => {
 
   const handleBillChange = (e) => {
     const { name, value } = e.target;
-    setBill((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    if (name === "invoice_no") {
+      setIsCustomInvoiceNo(true);
+    }
+    setBill((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === "invoice_date" && !isCustomInvoiceNo) {
+        updated.invoice_no = generateInvoiceNo(invoiceSequence, value);
+      }
+      return updated;
+    });
   };
 
   // ==========================================================
@@ -226,10 +343,12 @@ const Create = () => {
   // RESET
   // ==========================================================
   const resetForm = (nextSequence = invoiceSequence) => {
+    setIsCustomInvoiceNo(false);
+    const today = new Date().toISOString().split("T")[0];
     setBill({
-      invoice_no: generateInvoiceNo(nextSequence),
+      invoice_no: generateInvoiceNo(nextSequence, today),
       invoice_type: invoiceType,
-      invoice_date: new Date().toISOString().split("T")[0],
+      invoice_date: today,
       supplier_id: "",
       buyer_name: "",
       buyer_address: "",
@@ -339,14 +458,48 @@ const Create = () => {
 
       setSuccess(successMsg);
 
-      // Increment the sequence for the next invoice
+      // Cache newly created bill
+      try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
+        const newBillEntry = {
+          id: billData.id || Date.now(),
+          invoice_no: bill.invoice_no,
+          invoice_date: bill.invoice_date,
+          supplier_id: Number(bill.supplier_id),
+          buyer_name: bill.buyer_name,
+          total_amount: billPayload.total_amount,
+          created_at: new Date().toISOString(),
+        };
+        localStorage.setItem(CACHE_KEY, JSON.stringify([newBillEntry, ...cached]));
+      } catch {}
+
+      // Increment sequence for the next invoice
       const nextSeq = invoiceSequence + 1;
       setInvoiceSequence(nextSeq);
+      setIsCustomInvoiceNo(false);
       resetForm(nextSeq);
 
     } catch (err) {
       console.error(err);
-      setError(err.message || "Something went wrong.");
+      let errMsg = err.message || "Something went wrong.";
+      if (errMsg.includes("duplicate key") || errMsg.includes("already exists")) {
+        // Automatically fetch latest bills to determine the next unused number
+        fetch(BILL_API, { method: "GET", credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status && Array.isArray(data.data)) {
+              try { localStorage.setItem(CACHE_KEY, JSON.stringify(data.data)); } catch {}
+              const freshSeq = getNextInvoiceSequence(data.data, bill.invoice_date);
+              setInvoiceSequence(freshSeq);
+              const freshNo = generateInvoiceNo(freshSeq, bill.invoice_date);
+              setBill((prev) => ({ ...prev, invoice_no: freshNo }));
+              setIsCustomInvoiceNo(false);
+            }
+          })
+          .catch(() => {});
+        errMsg = `Invoice "${bill.invoice_no}" already exists in database. Next available number has been auto-selected. Please verify and submit again.`;
+      }
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -466,7 +619,21 @@ const Create = () => {
                 value={bill.invoice_no}
                 onChange={handleBillChange}
                 placeholder="Auto-Generated"
-                readOnly
+                helperText="Auto-calculated sequential number (editable if needed)"
+                rightAction={
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomInvoiceNo(false);
+                      const autoNo = generateInvoiceNo(invoiceSequence, bill.invoice_date);
+                      setBill((prev) => ({ ...prev, invoice_no: autoNo }));
+                    }}
+                    className="text-[10px] text-[#b9935a] hover:text-[#143d30] font-semibold uppercase tracking-wider underline cursor-pointer"
+                    title="Reset to auto-calculated sequential invoice number"
+                  >
+                    Auto-Generate
+                  </button>
+                }
               />
               <FormInput
                 label="Invoice Date"
@@ -740,17 +907,25 @@ const SectionTitle = ({ title, className = "" }) => (
   </div>
 );
 
-const FormInput = ({ label, required = false, readOnly = false, ...props }) => (
+const FormInput = ({ label, required = false, readOnly = false, helperText, rightAction, ...props }) => (
   <div>
-    <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-[#143d30]/80">
-      {label}
-      {required && <span className="ml-1 text-[#b9935a]">*</span>}
-    </label>
+    <div className="mb-2 flex items-center justify-between">
+      <label className="block text-xs font-bold uppercase tracking-widest text-[#143d30]/80">
+        {label}
+        {required && <span className="ml-1 text-[#b9935a]">*</span>}
+      </label>
+      {rightAction}
+    </div>
     <input
       {...props}
       readOnly={readOnly}
       className={`${inputClass} ${readOnly ? "cursor-not-allowed bg-[#f0ede8] text-[#143d30]/60 select-none" : ""}`}
     />
+    {helperText && (
+      <p className="mt-1 text-[11px] text-[#143d30]/60">
+        {helperText}
+      </p>
+    )}
   </div>
 );
 

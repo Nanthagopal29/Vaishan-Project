@@ -9,6 +9,7 @@ const API_BASE_URL = isProd ? "https://vaishanandj-billing.onrender.com" : "";
 
 export const LOGIN_API       = `${API_BASE_URL}/invoice/login/`;
 export const BILL_API        = `${API_BASE_URL}/invoice/bills/`;
+export const NEXT_INVOICE_API = `${API_BASE_URL}/invoice/bills/next-number/`;
 export const BILL_DETAIL_API = (billId) => `${API_BASE_URL}/invoice/bills/${billId}/`;
 export const ITEM_API        = (billId) => `${API_BASE_URL}/invoice/bills/${billId}/items/`;
 export const SUPPLIER_API    = `${API_BASE_URL}/invoice/suppliers/`;

@@ -7,6 +7,7 @@ urlpatterns = [
     path("suppliers/",views.supplier_master,name="supplier_master"),
     # Bills
     path("bills/",views.bills,name="bills"),
+    path("bills/next-number/", views.next_invoice_number, name="next_invoice_number"),
     path("bills/<int:bill_id>/",views.bill_detail,name="bill_detail"),
     path("bills/<int:bill_id>/items/", views.bill_items, name="bill_items"),
     # Bill Items

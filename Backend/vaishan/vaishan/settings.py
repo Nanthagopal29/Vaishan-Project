@@ -148,11 +148,16 @@ USE_I18N = True
 USE_TZ = True
 
 JAZZMIN_SETTINGS = {
-    "site_title": "Billing Admin",
-    "site_header": "Billing Administration",
-    "site_brand": "Billing System",
+    "site_title": "Vaishan & J Admin",
+    "site_header": "Vaishan & J",
+    "site_brand": "Vaishan & J",
     "site_logo": "images/logo.png",
     "login_logo": "images/logo.png",
+    "site_icon": "images/logo.png",
+    "site_logo_classes": "rounded shadow-sm",
+    "welcome_sign": "Sign in to Vaishan & J Admin",
+    "copyright": "Vaishan & J Vintage Fashion",
+    "custom_css": "css/custom_admin.css",
 }
 
 

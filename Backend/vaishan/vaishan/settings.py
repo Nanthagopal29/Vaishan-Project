@@ -171,7 +171,10 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # WhiteNoise: serve & cache static files efficiently in production
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'\r\n\r\n# Use cached sessions — admin panel still works, but avoids a DB write per API request.\r\nSESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# Use cached sessions — admin panel still works, but avoids a DB write per API request.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
 
 # Email

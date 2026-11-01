@@ -36,7 +36,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5600",
     "http://192.168.1.8:5600",
     "https://vaishanandj-billing.onrender.com",
-    "https://vj-bills.netlify.app"
+    "https://vjbills.vercel.app"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -45,7 +45,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5600",
     "http://192.168.1.8:5600",
     "https://vaishanandj-billing.onrender.com",
-    "https://vj-bills.netlify.app"
+    "https://vjbills.vercel.app"
 ]
 
 

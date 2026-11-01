@@ -1,9 +1,9 @@
 // In dev: use relative paths → Vite proxy forwards to Django on port 8000
-// In prod (Render / Netlify): use the full Render backend URL
+// In prod (Render / Vercel): use the full Render backend URL
 const isProd =
   typeof window !== "undefined" &&
   (window.location.hostname.endsWith("onrender.com") ||
-    window.location.hostname.endsWith("netlify.app"));
+    window.location.hostname.endsWith("vercel.app"));
 
 const API_BASE_URL = isProd ? "https://vaishanandj-billing.onrender.com" : "";
 

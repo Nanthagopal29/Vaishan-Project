@@ -96,13 +96,19 @@ const Login = () => {
         };
 
     try {
+      // 45-second timeout — Render free tier can take 30-50s to cold-start
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45_000);
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       const data = await readApiResponse(response);
 

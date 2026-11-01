@@ -27,7 +27,8 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = 'django-insecure-pa4316q5-=2!z=wh+zgh04^^cg^p0frog!iw1e^w+hypk)ehx3'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Reads from env var; defaults to False so production deploys are safe.
+DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
 ALLOWED_HOSTS = ['*']
 
@@ -70,7 +71,9 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',  # <-- serve static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # CsrfViewMiddleware disabled — all API views use @csrf_exempt and the
+    # frontend is on a separate origin.  Re-enable if you add server-rendered forms.
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -168,7 +171,7 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # WhiteNoise: serve & cache static files efficiently in production
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'\r\n\r\n# Use cached sessions — admin panel still works, but avoids a DB write per API request.\r\nSESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
 
 # Email

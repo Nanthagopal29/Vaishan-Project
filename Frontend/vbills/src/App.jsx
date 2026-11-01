@@ -12,14 +12,29 @@ import View from "./components/page/view";
 
 const RENDER_URL = "https://vaishanandj-billing.onrender.com";
 
+/** Fire-and-forget wake-up ping with timeout + one retry. */
+const wakeBackend = async (attempt = 1) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000); // 30 s timeout
+  try {
+    await fetch(`${RENDER_URL}/invoice/suppliers/`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+  } catch {
+    // Retry once — the first request often fails while Render is booting
+    if (attempt < 2) {
+      setTimeout(() => wakeBackend(attempt + 1), 3_000);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 const App = () => {
   useEffect(() => {
-    // Fire-and-forget ping — wakes Render's free dyno immediately on app load
-    // so API responses are fast by the time the user navigates to any page
-    fetch(`${RENDER_URL}/invoice/bills/`, {
-      method: "GET",
-      credentials: "include",
-    }).catch(() => {}); // silently ignore errors
+    // Wake Render's free dyno immediately so the backend is warm by login time
+    wakeBackend();
   }, []);
 
   return (

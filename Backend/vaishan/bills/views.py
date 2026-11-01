@@ -6,7 +6,7 @@ from datetime import datetime, date
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import login
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.conf import settings
@@ -30,28 +30,23 @@ def get_financial_year(d=None):
 
 def get_next_invoice_number(target_date=None):
     fy = get_financial_year(target_date)
-    existing_bills = TrsBills.objects.all()
+    prefix = f"VI/{fy}/"
+
+    # Use DB-level aggregation — much faster than loading all rows into Python
+    from django.db.models import Max
+    result = (
+        TrsBills.objects
+        .filter(invoice_no__startswith=prefix)
+        .aggregate(max_no=Max("invoice_no"))
+    )
+    max_inv = result.get("max_no") or ""
     max_seq = 0
-    for bill in existing_bills:
-        inv_no = (bill.invoice_no or "").strip()
-        # Look for sequence matching current FY: e.g. VI/2026-27/20
-        match_fy = re.search(rf"VI/{re.escape(fy)}/(\d+)", inv_no, re.IGNORECASE)
-        if match_fy:
-            try:
-                seq = int(match_fy.group(1))
-                if seq > max_seq:
-                    max_seq = seq
-            except ValueError:
-                pass
-        else:
-            match_any = re.search(r"/(\d+)$", inv_no)
-            if match_any:
-                try:
-                    seq = int(match_any.group(1))
-                    if seq > max_seq:
-                        max_seq = seq
-                except ValueError:
-                    pass
+    if max_inv:
+        suffix = max_inv[len(prefix):]
+        try:
+            max_seq = int(suffix.strip())
+        except ValueError:
+            pass
 
     next_seq = max_seq + 1 if max_seq > 0 else 1
     return f"VI/{fy}/{next_seq}"
@@ -175,8 +170,8 @@ def login_api(request):
     try:
         body = json.loads(request.body)
 
-        username = body.get("username")
-        password = body.get("password")
+        username = body.get("username", "").strip()
+        password = body.get("password", "")
 
         if not username or not password:
             return JsonResponse({
@@ -184,10 +179,20 @@ def login_api(request):
                 "message": "Username and password are required"
             }, status=400)
 
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            user = User.objects.filter(email=username).first()
+        # Single DB query: try username first, fall back to email
+        user = (
+            User.objects
+            .filter(username=username)
+            .only("id", "username", "email", "password", "is_active", "is_staff", "is_superuser")
+            .first()
+        )
+        if user is None:
+            user = (
+                User.objects
+                .filter(email=username)
+                .only("id", "username", "email", "password", "is_active", "is_staff", "is_superuser")
+                .first()
+            )
 
         if user is None or not user.check_password(password):
             return JsonResponse({
@@ -201,7 +206,10 @@ def login_api(request):
                 "message": "User account is disabled"
             }, status=403)
 
-        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        # NOTE: We intentionally skip Django's login() / session write here
+        # because this is a stateless JSON API — the frontend stores auth state.
+        # Calling login() was causing an extra DB write (session save) on every
+        # login request which added latency, especially on hosted environments.
 
         return JsonResponse({
             "status": True,

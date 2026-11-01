@@ -108,6 +108,11 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "HOST": os.getenv("DB_HOST", os.getenv("host")),
         "PORT": os.getenv("DB_PORT", os.getenv("port", "5432")),
+        # Keep DB connections alive for 60s instead of closing after every request.
+        # This avoids the TCP + TLS + auth handshake overhead on each API call.
+        "CONN_MAX_AGE": 60,
+        # Drop and reconnect if the connection has gone stale (e.g. after idle timeout).
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 

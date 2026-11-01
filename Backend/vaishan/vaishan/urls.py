@@ -38,28 +38,17 @@ def page_not_found(request, exception=None):
 
 
 # ------------------------------------------------------------------
-# Root health-check endpoint
+# Lightweight keep-alive / health-check endpoint
+# Ping this every ~14 min (e.g. via UptimeRobot free tier) to prevent
+# Render's free-tier server from spinning down and causing cold starts.
 # ------------------------------------------------------------------
-def api_root(request):
-    return JsonResponse(
-        {
-            "status": True,
-            "message": "Vaishan & J Billing API is running.",
-            "version": "1.0",
-            "endpoints": {
-                "bills":        "/invoice/bills/",
-                "bill_detail":  "/invoice/bills/<id>/",
-                "bill_items":   "/invoice/bills/<id>/items/",
-                "suppliers":    "/invoice/suppliers/",
-                "login":        "/invoice/login/",
-                "admin":        "/admin/",
-            },
-        }
-    )
+def ping(request):
+    return JsonResponse({"status": True, "message": "pong"})
 
 
 urlpatterns = [
     path("", index, name="home"),            # serves index.html at http://host/
+    path("ping/", ping, name="ping"),         # keep-alive for Render free tier
     path("admin/", admin.site.urls),
     path("invoice/", include("bills.urls")),  # /invoice/bills/, /invoice/suppliers/, etc.
 ]
